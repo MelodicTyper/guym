@@ -9,11 +9,29 @@ initializeDB();
 const app = express();
 const port = process.env.PORT || 3000;
 
-const corsOptions = {
-  origin: process.env.CORS_ORIGIN || "http://localhost:5173",
-};
+const allowedOrigins = [
+  'http://localhost:5173', // Vite Dev Server
+  //'http://localhost:8080', // Docker Localhost testing
+  'https://guym.melodictyper.xyz' // Production domain
+];
 
-app.use(cors(corsOptions));
+app.use(cors({
+  origin: function (origin, callback) {
+    // allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    
+    if (allowedOrigins.indexOf(origin) === -1) {
+      // If the origin isn't in the list, block it
+      // OPTIONAL: In 'production' inside Docker, you might just allow all 
+      // because Nginx handles the outside world.
+      return callback(new Error('The CORS policy for this site does not allow access from the specified Origin.'), false);
+    }
+    return callback(null, true);
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+}));
+
 app.use(express.json());
 
 // API routes
