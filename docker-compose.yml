@@ -1,9 +1,11 @@
-version: '3.8'
+version: "3.8"
 services:
   guym:
     build: .
-    ports:
-      - "8080:3000"
+    container_name: guym
     volumes:
       - ./server/database:/app/database
     restart: unless-stopped
+networks:
+  npm:
+    external: true

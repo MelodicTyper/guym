@@ -1,5 +1,5 @@
 # Stage 1: Build the React frontend
-FROM node:20-alpine AS builder
+FROM node:25.3.0 AS builder
 WORKDIR /app/client
 COPY client/package.json client/package-lock.json ./
 RUN npm install
@@ -7,10 +7,10 @@ COPY client/ ./
 RUN npm run build
 
 # Stage 2: Setup the Node.js server
-FROM node:20-alpine
+FROM node:25.3.0
 WORKDIR /app
 COPY server/package.json server/package-lock.json ./
-RUN npm install --production
+RUN npm install
 COPY server/ ./
 
 # Copy the built frontend from the builder stage
@@ -21,4 +21,4 @@ ENV NODE_ENV=production
 
 EXPOSE 3000
 
-CMD ["node", "index.js"]
+CMD ["npm", "start"]

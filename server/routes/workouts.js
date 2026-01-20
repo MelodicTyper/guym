@@ -164,23 +164,20 @@ router.get("/active", (req, res) => {
   res.json(activeWorkouts);
 });
 
-router.get("/progress/exercise/:exerciseName", (req, res) => {
-  const { exerciseName } = req.params;
+// GET /api/workouts/progress/volume
+router.get("/progress/volume", (req, res) => {
   const stmt = db.prepare(`
     SELECT
       w.date_completed,
-      we.volume,
-      MAX(ws.weight) as top_weight,
-      MAX(ws.reps) as max_reps
+      SUM(we.volume) AS total_volume
     FROM workouts w
     JOIN workout_entries we ON w.id = we.workout_id
-    JOIN workout_sets ws ON we.id = ws.workout_entry_id
-    WHERE we.exercise_name = ?
+    WHERE w.date_completed IS NOT NULL
     GROUP BY w.id
     ORDER BY w.date_completed
   `);
-  const exerciseData = stmt.all(exerciseName);
-  res.json(exerciseData);
+  const volumeData = stmt.all();
+  res.json(volumeData);
 });
 
 router.get("/progress/volume/:templateId", (req, res) => {
@@ -199,20 +196,23 @@ router.get("/progress/volume/:templateId", (req, res) => {
   res.json(volumeData);
 });
 
-// GET /api/workouts/progress/volume
-router.get("/progress/volume", (req, res) => {
+router.get("/progress/exercise/:exerciseName", (req, res) => {
+  const { exerciseName } = req.params;
   const stmt = db.prepare(`
     SELECT
       w.date_completed,
-      SUM(we.volume) AS total_volume
+      we.volume,
+      MAX(ws.weight) as top_weight,
+      MAX(ws.reps) as max_reps
     FROM workouts w
     JOIN workout_entries we ON w.id = we.workout_id
-    WHERE w.date_completed IS NOT NULL
+    JOIN workout_sets ws ON we.id = ws.workout_entry_id
+    WHERE we.exercise_name = ?
     GROUP BY w.id
     ORDER BY w.date_completed
   `);
-  const volumeData = stmt.all();
-  res.json(volumeData);
+  const exerciseData = stmt.all(exerciseName);
+  res.json(exerciseData);
 });
 
 // GET /api/workouts/:id
