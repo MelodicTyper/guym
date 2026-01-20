@@ -1,4 +1,8 @@
 
+# This is a vibecoded tool made for just me, not my code
+
+
+
 # Guym - Your Personal Gym Companion
 
 Guym is a full-stack web application designed to help you manage your workout routines. It allows you to create workout templates, start workout sessions, and track your progress.
