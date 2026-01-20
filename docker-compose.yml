@@ -3,9 +3,22 @@ services:
   guym:
     build: .
     container_name: guym
-    volumes:
-      - ./server/database:/app/database
     restart: unless-stopped
+    # 1. Access via localhost:8080 (optional, good for testing)
+    # ports:
+      # - "8080:3000"
+    # 2. Join the NPM network so the proxy can see it
+    networks:
+      - npm
+    environment:
+      # IMPORTANT: When behind NPM and SSL, the origin is HTTPS
+      - CORS_ORIGIN=https://guym.melodictyper.xyz
+      - NODE_ENV=production
+    volumes:
+      # Maps your local DB file to the container so data persists
+      - ./server/database:/app/database
+
+# 3. Define the external network
 networks:
   npm:
     external: true
