@@ -1,0 +1,22 @@
+.superset-group {
+    position: relative;
+    padding: 10px;
+    border: 1px solid #444;
+    border-radius: 4px;
+    margin-top: 5px;
+    margin-bottom: 5px;
+}
+
+.link-button-wrapper {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 5px;
+    margin: 0;
+}
+
+.superset-group .link-button-wrapper {
+    margin-top: 5px;
+    justify-content: center;
+    padding-left: 0;
+}
