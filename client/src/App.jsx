@@ -4,6 +4,7 @@ import Dashboard from "./pages/Dashboard";
 import TemplateBuilder from "./pages/TemplateBuilder";
 import WorkoutSession from "./pages/WorkoutSession";
 import Progress from "./pages/Progress";
+import WorkoutDetail from "./pages/WorkoutDetail";
 
 function App() {
   return (
@@ -24,6 +25,7 @@ function App() {
             <Route path="/" element={<Dashboard />} />
             <Route path="/templates" element={<TemplateBuilder />} />
             <Route path="/workout/:id" element={<WorkoutSession />} />
+            <Route path="/workout/history/:id" element={<WorkoutDetail />} />
             <Route path="/progress" element={<Progress />} />
           </Routes>
         </AppShell.Main>

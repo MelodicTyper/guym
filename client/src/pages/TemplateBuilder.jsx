@@ -13,6 +13,9 @@ import {
   Card,
   Stack,
   useMantineTheme,
+  Modal,
+  Table,
+  Tooltip,
 } from "@mantine/core";
 import {
   IconLink,
@@ -20,8 +23,10 @@ import {
   IconUnlink,
   IconPencil,
 } from "@tabler/icons-react";
+import { useDisclosure } from "@mantine/hooks";
 import apiClient from "../api/api";
 import "./TemplateBuilder.css";
+import { Badge } from "@mantine/core";
 
 function TemplateBuilder() {
   const theme = useMantineTheme();
@@ -32,14 +37,23 @@ function TemplateBuilder() {
   const [editingTemplateName, setEditingTemplateName] = useState("");
   const [newExercise, setNewExercise] = useState({
     name: "",
-    weight: 50,
     sets: 3,
-    reps: 7,
   });
+  const [history, setHistory] = useState([]);
+  const [
+    historyModalOpened,
+    { open: openHistoryModal, close: closeHistoryModal },
+  ] = useDisclosure(false);
 
   useEffect(() => {
     fetchTemplates();
+    fetchHistory();
   }, []);
+
+  const fetchHistory = async () => {
+    const response = await apiClient.get("/workouts/history");
+    setHistory(response.data);
+  };
 
   const fetchTemplates = async () => {
     const response = await apiClient.get("/templates");
@@ -87,10 +101,10 @@ function TemplateBuilder() {
     if (!selectedTemplate || !newExercise.name) return;
     await apiClient.post(
       `/templates/${selectedTemplate.id}/exercises`,
-      newExercise,
+      { ...newExercise, weight: 50, reps: 7 }, // Add default weight and reps
     );
     fetchTemplateDetails(selectedTemplate.id);
-    setNewExercise({ name: "", weight: 50, sets: 3, reps: 7 });
+    setNewExercise({ name: "", sets: 3 });
   };
 
   const handleSuperset = async (index) => {
@@ -140,6 +154,43 @@ function TemplateBuilder() {
     fetchTemplateDetails(selectedTemplate.id);
   };
 
+  const handleUpdateFromHistory = async (workoutId) => {
+    if (!selectedTemplate) return;
+    await apiClient.put(
+      `/templates/${selectedTemplate.id}/from-history/${workoutId}`,
+    );
+    closeHistoryModal();
+    fetchTemplateDetails(selectedTemplate.id);
+  };
+
+  const handleUpdateSets = async (exerciseId) => {
+    const exercise = selectedTemplate.exercises.find(
+      (ex) => ex.id === exerciseId,
+    );
+    if (!exercise) return;
+
+    const setsToUpdate = Object.entries(editingSets)
+      .filter(([setId]) => exercise.sets.some((s) => s.id === parseInt(setId)))
+      .map(([setId, values]) => {
+        const originalSet = exercise.sets.find((s) => s.id === parseInt(setId));
+        return {
+          ...originalSet,
+          ...values,
+        };
+      });
+
+    if (setsToUpdate.length === 0) return;
+
+    await apiClient.put(`/exercises/${exerciseId}/sets`, {
+      sets: setsToUpdate,
+    });
+
+    setEditingSets({});
+    fetchTemplateDetails(selectedTemplate.id);
+  };
+
+  const [editingSets, setEditingSets] = useState({});
+
   const renderExercises = () => {
     if (!selectedTemplate) return null;
 
@@ -160,41 +211,149 @@ function TemplateBuilder() {
           <Paper
             withBorder={isSuperset}
             p="md"
-            mt="md"
+            mt="xl"
+            sx={{ backgroundColor: theme.colors.dark[8] }}
             className={isSuperset ? "superset-group" : ""}
           >
-            {group.map((exercise) => (
-              <Text key={exercise.id}>
-                {exercise.name} - {exercise.weight}lbs, {exercise.sets}x
-                {exercise.reps}
-              </Text>
+            {group.map((exercise, exerciseIndex) => (
+              <div
+                key={exercise.id}
+                className={
+                  isSuperset && exerciseIndex < group.length - 1
+                    ? "exercise-in-superset"
+                    : ""
+                }
+              >
+                <Title order={3} sx={{ textTransform: "capitalize" }}>
+                  {exercise.name}
+                </Title>
+                <Table>
+                  <thead>
+                    <tr>
+                      <th
+                        style={{
+                          fontSize: "0.8em",
+                          color: theme.colors.gray[6],
+                          fontWeight: "normal",
+                        }}
+                      >
+                        Set
+                      </th>
+                      <th
+                        style={{
+                          fontSize: "0.8em",
+                          color: theme.colors.gray[6],
+                          fontWeight: "normal",
+                        }}
+                      >
+                        Weight (lbs)
+                      </th>
+                      <th
+                        style={{
+                          fontSize: "0.8em",
+                          color: theme.colors.gray[6],
+                          fontWeight: "normal",
+                        }}
+                      >
+                        Reps
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {exercise.sets.map((set) => (
+                      <tr key={set.id}>
+                        <td>
+                          <Badge>{set.set_number}</Badge>
+                        </td>
+                        <td style={{ textAlign: "center" }}>
+                          <NumberInput
+                            value={editingSets[set.id]?.weight ?? set.weight}
+                            onChange={(value) =>
+                              setEditingSets({
+                                ...editingSets,
+                                [set.id]: {
+                                  ...editingSets[set.id],
+                                  weight: value,
+                                },
+                              })
+                            }
+                            style={{ width: "120px", margin: "0 auto" }}
+                            styles={{
+                              input: {
+                                textAlign: "center",
+                                backgroundColor: theme.colors.dark[6],
+                                borderRadius: theme.radius.sm,
+                                padding: "0 10px",
+                              },
+                            }}
+                          />
+                        </td>
+                        <td style={{ textAlign: "center" }}>
+                          <NumberInput
+                            value={editingSets[set.id]?.reps ?? set.reps}
+                            onChange={(value) =>
+                              setEditingSets({
+                                ...editingSets,
+                                [set.id]: {
+                                  ...editingSets[set.id],
+                                  reps: value,
+                                },
+                              })
+                            }
+                            style={{ width: "120px", margin: "0 auto" }}
+                            styles={{
+                              input: {
+                                textAlign: "center",
+                                backgroundColor: theme.colors.dark[6],
+                                borderRadius: theme.radius.sm,
+                                padding: "0 10px",
+                              },
+                            }}
+                          />
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </Table>
+                <Button
+                  onClick={() => handleUpdateSets(exercise.id)}
+                  mt="sm"
+                  fullWidth
+                >
+                  Update Sets
+                </Button>
+              </div>
             ))}
             {isSuperset && (
               <div className="link-button-wrapper">
-                <ActionIcon
-                  size="sm"
-                  variant="default"
-                  onClick={() => handleUnsuperset(group[0].superset_group)}
-                >
-                  <IconUnlink size={14} />
-                </ActionIcon>
+                <Tooltip label="Remove Superset">
+                  <ActionIcon
+                    size="sm"
+                    variant="default"
+                    onClick={() => handleUnsuperset(group[0].superset_group)}
+                  >
+                    <IconUnlink size={14} />
+                  </ActionIcon>
+                </Tooltip>
               </div>
             )}
           </Paper>
           {!isSuperset &&
             groupIndex < Object.values(groupedExercises).length - 1 && (
               <div className="link-button-wrapper">
-                <ActionIcon
-                  size="sm"
-                  variant="default"
-                  onClick={() =>
-                    handleSuperset(
-                      exercises.findIndex((e) => e.id === group[0].id),
-                    )
-                  }
-                >
-                  <IconLink size={14} />
-                </ActionIcon>
+                <Tooltip label="Create Superset">
+                  <ActionIcon
+                    size="sm"
+                    variant="default"
+                    onClick={() =>
+                      handleSuperset(
+                        exercises.findIndex((e) => e.id === group[0].id),
+                      )
+                    }
+                  >
+                    <IconLink size={14} />
+                  </ActionIcon>
+                </Tooltip>
               </div>
             )}
         </div>
@@ -297,31 +456,44 @@ function TemplateBuilder() {
               />
               <Group grow mt="sm">
                 <NumberInput
-                  label="Weight (lbs)"
-                  value={newExercise.weight}
-                  onChange={(value) =>
-                    setNewExercise({ ...newExercise, weight: value })
-                  }
-                />
-                <NumberInput
                   label="Sets"
                   value={newExercise.sets}
                   onChange={(value) =>
                     setNewExercise({ ...newExercise, sets: value })
                   }
                 />
-                <NumberInput
-                  label="Reps"
-                  value={newExercise.reps}
-                  onChange={(value) =>
-                    setNewExercise({ ...newExercise, reps: value })
-                  }
-                />
               </Group>
               <Button onClick={handleAddExercise} mt="md">
                 Add Exercise
               </Button>
+              <Button onClick={openHistoryModal} mt="md" ml="md">
+                Update From History
+              </Button>
             </Paper>
+
+            <Modal
+              opened={historyModalOpened}
+              onClose={closeHistoryModal}
+              title="Update from History"
+            >
+              <Stack>
+                {history.map((workout) => (
+                  <Card key={workout.id} withBorder>
+                    <Group position="apart">
+                      <Text>
+                        {workout.workout_name} -{" "}
+                        {new Date(workout.date_completed).toLocaleDateString()}
+                      </Text>
+                      <Button
+                        onClick={() => handleUpdateFromHistory(workout.id)}
+                      >
+                        Update
+                      </Button>
+                    </Group>
+                  </Card>
+                ))}
+              </Stack>
+            </Modal>
 
             <Paper withBorder p="md" mt="md">
               <Title order={4}>Exercises</Title>

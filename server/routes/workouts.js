@@ -27,6 +27,9 @@ router.post("/", (req, res) => {
   );
   const exercises = exercisesStmt.all(template_id);
 
+  const templateSetsStmt = db.prepare(
+    "SELECT * FROM template_sets WHERE exercise_id = ? ORDER BY set_number",
+  );
   const insertEntryStmt = db.prepare(
     "INSERT INTO workout_entries (workout_id, exercise_id, exercise_name, superset_group) VALUES (?, ?, ?, ?)",
   );
@@ -43,21 +46,22 @@ router.post("/", (req, res) => {
       exercise.superset_group,
     );
     const workoutEntryId = entryInfo.lastInsertRowid;
+    const templateSets = templateSetsStmt.all(exercise.id);
     const sets = [];
-    for (let i = 1; i <= exercise.sets; i++) {
+    for (const templateSet of templateSets) {
       const setInfo = insertSetStmt.run(
         workoutEntryId,
-        i,
-        exercise.weight,
-        exercise.reps,
+        templateSet.set_number,
+        templateSet.weight,
+        templateSet.reps,
         0,
       );
       sets.push({
         id: setInfo.lastInsertRowid,
         workout_entry_id: workoutEntryId,
-        set_number: i,
-        weight: exercise.weight,
-        reps: exercise.reps,
+        set_number: templateSet.set_number,
+        weight: templateSet.weight,
+        reps: templateSet.reps,
         completed: false,
       });
     }
@@ -244,6 +248,93 @@ router.get("/:id", (req, res) => {
   workout.entries = entries;
 
   res.json(workout);
+});
+
+// Start a new workout from a history
+router.post("/from-history/:id", (req, res) => {
+  const { id: historyId } = req.params;
+  const { name } = req.body;
+  const startTime = new Date().toISOString();
+
+  // Get the template_id from the historical workout
+  const historyWorkoutStmt = db.prepare(
+    "SELECT template_id FROM workouts WHERE id = ?",
+  );
+  const historyWorkout = historyWorkoutStmt.get(historyId);
+  if (!historyWorkout) {
+    return res.status(404).json({ error: "Historical workout not found" });
+  }
+  const { template_id } = historyWorkout;
+
+  const stmt = db.prepare(
+    "INSERT INTO workouts (template_id, name, start_time) VALUES (?, ?, ?)",
+  );
+  const info = stmt.run(template_id, name, startTime);
+  const workoutId = info.lastInsertRowid;
+
+  // Get entries and sets from the historical workout
+  const historyEntriesStmt = db.prepare(
+    "SELECT * FROM workout_entries WHERE workout_id = ? ORDER BY superset_group, id",
+  );
+  const historyEntries = historyEntriesStmt.all(historyId);
+
+  const insertEntryStmt = db.prepare(
+    "INSERT INTO workout_entries (workout_id, exercise_id, exercise_name, superset_group) VALUES (?, ?, ?, ?)",
+  );
+  const insertSetStmt = db.prepare(
+    "INSERT INTO workout_sets (workout_entry_id, set_number, weight, reps, completed) VALUES (?, ?, ?, ?, ?)",
+  );
+
+  const entries = [];
+  for (const historyEntry of historyEntries) {
+    const entryInfo = insertEntryStmt.run(
+      workoutId,
+      historyEntry.exercise_id,
+      historyEntry.exercise_name,
+      historyEntry.superset_group,
+    );
+    const workoutEntryId = entryInfo.lastInsertRowid;
+
+    const historySetsStmt = db.prepare(
+      "SELECT * FROM workout_sets WHERE workout_entry_id = ?",
+    );
+    const historySets = historySetsStmt.all(historyEntry.id);
+    const sets = [];
+    for (const historySet of historySets) {
+      const setInfo = insertSetStmt.run(
+        workoutEntryId,
+        historySet.set_number,
+        historySet.weight,
+        historySet.reps,
+        0,
+      );
+      sets.push({
+        id: setInfo.lastInsertRowid,
+        workout_entry_id: workoutEntryId,
+        set_number: historySet.set_number,
+        weight: historySet.weight,
+        reps: historySet.reps,
+        completed: false,
+      });
+    }
+
+    entries.push({
+      id: workoutEntryId,
+      workout_id: workoutId,
+      exercise_id: historyEntry.exercise_id,
+      exercise_name: historyEntry.exercise_name,
+      superset_group: historyEntry.superset_group,
+      sets: sets,
+    });
+  }
+
+  res.status(201).json({
+    id: workoutId,
+    template_id,
+    name,
+    start_time: startTime,
+    entries,
+  });
 });
 
 module.exports = router;

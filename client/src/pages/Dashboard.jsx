@@ -28,6 +28,7 @@ function Dashboard() {
     useDisclosure(false);
   const [workoutName, setWorkoutName] = useState("");
   const [selectedTemplateId, setSelectedTemplateId] = useState(null);
+  const [selectedHistoryId, setSelectedHistoryId] = useState(null);
 
   useEffect(() => {
     fetchTemplates();
@@ -58,12 +59,32 @@ function Dashboard() {
     openModal();
   };
 
+  const openStartFromHistoryModal = (workoutId) => {
+    setSelectedHistoryId(workoutId);
+    openModal();
+  };
+
   const handleStartWorkout = async () => {
-    if (!selectedTemplateId) return;
-    const response = await apiClient.post("/workouts", {
-      template_id: selectedTemplateId,
-      name: workoutName,
-    });
+    let response;
+    if (selectedHistoryId) {
+      response = await apiClient.post(
+        `/workouts/from-history/${selectedHistoryId}`,
+        {
+          name: workoutName,
+        },
+      );
+    } else if (selectedTemplateId) {
+      response = await apiClient.post("/workouts", {
+        template_id: selectedTemplateId,
+        name: workoutName,
+      });
+    } else {
+      return;
+    }
+    closeModal();
+    setWorkoutName("");
+    setSelectedTemplateId(null);
+    setSelectedHistoryId(null);
     navigate(`/workout/${response.data.id}`);
   };
 
@@ -130,7 +151,11 @@ function Dashboard() {
     <div>
       <Modal
         opened={modalOpened}
-        onClose={closeModal}
+        onClose={() => {
+          closeModal();
+          setSelectedTemplateId(null);
+          setSelectedHistoryId(null);
+        }}
         title="Name Your Workout"
         centered
       >
@@ -254,11 +279,23 @@ function Dashboard() {
               alignItems: "center",
             }}
           >
-            <Text>
-              {workout.workout_name} -{" "}
-              {new Date(workout.date_completed).toLocaleDateString()}
-            </Text>
+            <Link
+              to={`/workout/history/${workout.id}`}
+              style={{ textDecoration: "none", color: "inherit" }}
+            >
+              <Text>
+                {workout.workout_name} -{" "}
+                {new Date(workout.date_completed).toLocaleDateString()}
+              </Text>
+            </Link>
             <Group>
+              <Button
+                size="xs"
+                variant="outline"
+                onClick={() => openStartFromHistoryModal(workout.id)}
+              >
+                Start This Workout
+              </Button>
               <ActionIcon onClick={() => handleExportWorkout(workout.id)}>
                 <IconUpload />
               </ActionIcon>

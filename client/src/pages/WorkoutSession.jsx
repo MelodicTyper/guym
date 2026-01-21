@@ -27,53 +27,67 @@ function WorkoutSession() {
     }
   }, 1000);
 
-  useEffect(() => {
-    const fetchWorkout = async () => {
-      const response = await apiClient.get(`/workouts/${id}`);
-      const workoutData = response.data;
-      setWorkout(workoutData);
+  const fetchWorkout = async () => {
+    const response = await apiClient.get(`/workouts/${id}`);
+    const workoutData = response.data;
+    setWorkout(workoutData);
 
-      const supersetGroups = Object.values(
-        workoutData.entries.reduce((acc, entry) => {
-          const key = entry.superset_group || `single-${entry.id}`;
-          if (!acc[key]) {
-            acc[key] = [];
-          }
-          acc[key].push(entry);
-          return acc;
-        }, {}),
-      );
+    const supersetGroups = Object.values(
+      workoutData.entries.reduce((acc, entry) => {
+        const key = entry.superset_group || `single-${entry.id}`;
+        if (!acc[key]) {
+          acc[key] = [];
+        }
+        acc[key].push(entry);
+        return acc;
+      }, {}),
+    );
 
-      const newOrderedSets = [];
-      supersetGroups.forEach((group) => {
-        if (group.length > 1) {
-          const maxSets = Math.max(...group.map((entry) => entry.sets.length));
-          for (let i = 0; i < maxSets; i++) {
-            for (const entry of group) {
-              if (entry.sets[i]) {
-                newOrderedSets.push(entry.sets[i]);
-              }
+    const newOrderedSets = [];
+    supersetGroups.forEach((group) => {
+      if (group.length > 1) {
+        const maxSets = Math.max(...group.map((entry) => entry.sets.length));
+        for (let i = 0; i < maxSets; i++) {
+          for (const entry of group) {
+            if (entry.sets[i]) {
+              newOrderedSets.push(entry.sets[i]);
             }
           }
-        } else {
-          newOrderedSets.push(...group[0].sets);
         }
-      });
-
-      setOrderedSets(newOrderedSets);
-      const firstUncompletedSet = newOrderedSets.find((set) => !set.completed);
-      if (firstUncompletedSet) {
-        setCurrentSetId(firstUncompletedSet.id);
-      } else if (newOrderedSets.length > 0) {
-        // All sets are completed, workout is done
-        setCurrentSetId(null);
+      } else {
+        newOrderedSets.push(...group[0].sets);
       }
-    };
+    });
 
+    setOrderedSets(newOrderedSets);
+    const firstUncompletedSet = newOrderedSets.find((set) => !set.completed);
+    if (firstUncompletedSet) {
+      setCurrentSetId(firstUncompletedSet.id);
+    } else if (newOrderedSets.length > 0) {
+      // All sets are completed, workout is done
+      setCurrentSetId(null);
+    }
+  };
+
+  useEffect(() => {
     fetchWorkout();
     interval.start();
     return interval.stop;
   }, [id]);
+
+  const handleAddSet = async () => {
+    const currentEntry = workout.entries.find((entry) =>
+      entry.sets.some((set) => set.id === currentSetId),
+    );
+    const currentSetData = orderedSets.find((set) => set.id === currentSetId);
+
+    await apiClient.post(`/workout-sets`, {
+      workout_entry_id: currentEntry.id,
+      weight: currentSetData.weight,
+      reps: currentSetData.reps,
+    });
+    fetchWorkout();
+  };
 
   const handleSetDataChange = (field, value) => {
     const newWorkout = { ...workout };
@@ -177,9 +191,14 @@ function WorkoutSession() {
               />
             </Group>
 
-            <Button onClick={handleNextSet} size="lg">
-              Next Set
-            </Button>
+            <Group>
+              <Button onClick={handleNextSet} size="lg">
+                Next Set
+              </Button>
+              <Button onClick={handleAddSet} size="lg" variant="light">
+                Add Set
+              </Button>
+            </Group>
           </Stack>
         </Card>
       </div>

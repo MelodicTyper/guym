@@ -11,12 +11,18 @@
     display: flex;
     justify-content: center;
     align-items: center;
-    height: 5px;
-    margin: 0;
+    height: 30px;
+    margin: 10px 0 0 0;
 }
 
 .superset-group .link-button-wrapper {
-    margin-top: 5px;
+    margin-top: 15px;
     justify-content: center;
     padding-left: 0;
+}
+
+.exercise-in-superset {
+    margin-bottom: 20px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid #444;
 }

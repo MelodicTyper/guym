@@ -17,11 +17,20 @@ function initializeDB() {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       template_id INTEGER NOT NULL,
       name TEXT NOT NULL,
-      weight REAL NOT NULL,
       sets INTEGER NOT NULL,
-      reps INTEGER NOT NULL,
       superset_group INTEGER,
       FOREIGN KEY (template_id) REFERENCES templates (id) ON DELETE CASCADE
+    );
+  `;
+
+  const createTemplateSetsTable = `
+    CREATE TABLE IF NOT EXISTS template_sets (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      exercise_id INTEGER NOT NULL,
+      set_number INTEGER NOT NULL,
+      weight REAL NOT NULL,
+      reps INTEGER NOT NULL,
+      FOREIGN KEY (exercise_id) REFERENCES exercises (id) ON DELETE CASCADE
     );
   `;
 
@@ -42,12 +51,12 @@ function initializeDB() {
     CREATE TABLE IF NOT EXISTS workout_entries (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       workout_id INTEGER NOT NULL,
-      exercise_id INTEGER NOT NULL,
+      exercise_id INTEGER,
       exercise_name TEXT NOT NULL,
       superset_group INTEGER,
       volume REAL,
       FOREIGN KEY (workout_id) REFERENCES workouts (id) ON DELETE CASCADE,
-      FOREIGN KEY (exercise_id) REFERENCES exercises (id) ON DELETE CASCADE
+      FOREIGN KEY (exercise_id) REFERENCES exercises (id) ON DELETE SET NULL
     );
   `;
 
@@ -63,17 +72,17 @@ function initializeDB() {
     );
   `;
 
-  db.exec("DROP TABLE IF EXISTS workout_sets");
-  db.exec("DROP TABLE IF EXISTS workout_entries");
-  db.exec("DROP TABLE IF EXISTS workouts");
-  db.exec("DROP TABLE IF EXISTS exercises");
-  db.exec("DROP TABLE IF EXISTS templates");
-  db.exec(createTemplatesTable);
-  db.exec(createExercisesTable);
-  db.exec(createWorkoutsTable);
-  db.exec(createWorkoutEntriesTable);
-  db.exec(createWorkoutSetsTable);
-  console.log("Database initialized.");
+  try {
+    db.exec(createTemplatesTable);
+    db.exec(createExercisesTable);
+    db.exec(createTemplateSetsTable);
+    db.exec(createWorkoutsTable);
+    db.exec(createWorkoutEntriesTable);
+    db.exec(createWorkoutSetsTable);
+    console.log("Database initialized.");
+  } catch (err) {
+    console.error("Error initializing database:", err);
+  }
 }
 
 module.exports = { db, initializeDB };

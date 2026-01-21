@@ -2,6 +2,43 @@ const express = require("express");
 const router = express.Router();
 const { db } = require("../db");
 
+// Create a new workout set
+router.post("/", (req, res) => {
+  const { workout_entry_id, weight, reps } = req.body;
+
+  if (
+    workout_entry_id === undefined ||
+    weight === undefined ||
+    reps === undefined
+  ) {
+    return res
+      .status(400)
+      .json({ error: "workout_entry_id, weight, and reps are required" });
+  }
+
+  const getMaxSetNumberStmt = db.prepare(
+    "SELECT MAX(set_number) as max_set_number FROM workout_sets WHERE workout_entry_id = ?",
+  );
+  const { max_set_number } = getMaxSetNumberStmt.get(workout_entry_id) || {
+    max_set_number: 0,
+  };
+  const set_number = (max_set_number || 0) + 1;
+
+  const stmt = db.prepare(
+    "INSERT INTO workout_sets (workout_entry_id, set_number, weight, reps, completed) VALUES (?, ?, ?, ?, ?)",
+  );
+  const info = stmt.run(workout_entry_id, set_number, weight, reps, 0);
+
+  res.status(201).json({
+    id: info.lastInsertRowid,
+    workout_entry_id,
+    set_number,
+    weight,
+    reps,
+    completed: 0,
+  });
+});
+
 // Update a workout set
 router.put("/:id", (req, res) => {
   const { id } = req.params;
